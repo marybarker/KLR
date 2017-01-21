@@ -31,14 +31,6 @@ class braid():
         if( len(colors) < self.max_strands): 
             colors = self.max_strands*'i'
 
-        #        self.cartan = {}
-        #	if isinstance(cartan, list):
-        #            for pair in cartan: 
-        #                self.cartan
-        #            # stuff
-        #        elif isinstance(cartan, int):
-        #            pass
-
         self.c = colors
         self.word = word
         self.string_char = y_and_s
