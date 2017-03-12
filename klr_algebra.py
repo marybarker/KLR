@@ -1,506 +1,421 @@
 import re
-import string
-run_tests = False
-are_same = 2
-forward_directed = -1
-backward_directed = -1
 
-# for pretty printouts
-def plusminus(a):
-    if a < 0:
-        return ' - '+str(abs(a))
+cartan = {('1','1'):2, ('2','2'):2, ('3','3'):2, ('1','2'):1, ('1','3'):0, ('2','1'):1, ('3','1'):1, ('3','2'):1, ('2','3'):1}
+colors = '123123'
+
+dot = 'x'
+swap = 's'
+eps = 'e'
+x = 'X'
+theta = 'theta'
+d = 'd'
+special_characters = [dot,swap,eps,x,theta,d]
+forward_directed = 1
+backward_directed = 1
+
+def ASWORD(mylist): 
+    if isinstance(mylist, list): 
+        return ''.join(mylist)
     else: 
-        return ' + '+str(abs(a))
+        return str(mylist)
 
-class braid():
-    def __init__(self, word, colors, num=-1, coef=1.0, cartan = 0):
-        # make sure notation is in standard form
-        word = str(word).replace('Y','y').replace('S', 's')
-        # extract all dots and crossings with associated strand numbers 
-        y_and_s = re.sub('\d+', ' ', word).split(' ')[:-1]
-        nums = re.sub('[ys]', ' ', word).split(' ')[1:]
+def S(n1,n2): 
+    if n1 == n2: 
+        return str(n1 + 1)
+    elif (int(n1) + 1) == int(n2): 
+        return str(n1)
+    else: 
+        return str(n2)
+       
+def relation(thing1, thing2, thing3 = 1, c1 = '1', c2='1'): 
+    all_that_stuff = list()
+    n1 = int(thing1[1])
+    n2 = int(thing2[1])
+
+    if thing1[0] == dot: 
+       if thing2[0] == swap: 
+           thing = [[1, swap+str(n2),dot+S(n2,n1)]]
+           if cartan[(c1,c2)] == 2: 
+               if n1 == n2:
+                   thing = thing + [[-1,'']]
+               elif (n1 + 1) == n2:
+                   thing = thing + [[ 1,'']]
+           return thing
+
+    elif thing1[0] == swap: 
+       if thing2[0] == swap: 
+           thing = [[1, swap+str(n2),dot+S(n2,n1)]]
+
+    return all_that_stuff
+
+class braid(): 
+    def update_from_words(self, string = 0): 
+        if string != 0: 
+            self.words = [string]
+
+        self.terms = list()
+        words = '['+''.join([a for a in special_characters])+']'
+        for string in self.words: 
+            no_nums = re.sub('\d+', ' ', string).split(' ')[:-1]
+            nums = [a for a in re.sub(words, ' ', string).split(' ')[1:] if a]
+            terms = [''.join([no_nums[a],nums[a]]) for a in range(len(nums))]
+            self.terms.append(terms)
 
 
-        y_ns = [int(nums[i]) for i in range(len(nums)) if y_and_s[i] == 'y']
-        s_ns = [int(nums[i]) for i in range(len(nums)) if y_and_s[i] == 's']
-        y_max = max(y_ns) if y_ns else 0
-        s_max = max(s_ns) if s_ns else 0
+        self.numwords = len(self.words)
 
-        self.max_strands = max(num, max(s_max + 1, y_max))
-
-        if( len(colors) < self.max_strands): 
-            colors = self.max_strands*'i'
-
-        self.c = colors
-        self.word = word
-        self.string_char = y_and_s
-        self.string_nums = nums
-        self.num_dots = y_and_s.count('y')
-        self.num_crossings = y_and_s.count('s')
-        self.coef = coef
-        self.dots_at_top = False
-        self.cart = cartan
-
-    def cartan(self, col1, col2):
-        if isinstance(self.cart, dict): 
-            return self.cart[(col1, col2)]
-        elif isinstance(self.cart, int): 
-            if col1 == col2: 
-                return are_same
+    # update braid after changing/adding to braid.terms
+    def update_from_terms(self, termslist = 0):
+        if termslist != 0: 
+            self.terms = [termslist]
+        self.words = list()
+        coefs = list()
+        for index in range(len(self.terms)):
+            coef = self.coefs[index]
+            word = ASWORD(self.terms[index])
+            if word in self.words: 
+                i = self.words.index(word)
+                coefs[i] = coefs[i] + self.coefs[index]
             else: 
-                return 0
-        #elif isinstance(self.cart, CartanMatrix): 
-        #    return self.cart[col1, col2]
+                self.words.append(word)
+                coefs.append(coef)
+        self.coefs = coefs
+        self.numwords = len(self.words)
 
-    def __mul__(self, other):
-        if isinstance(other, braid):
-            c1 = other.c
-            c2 = ''
-            return_val = braid('', '', self.max_strands)
+    # initializing an braid
+    def __init__(self, string=0, coef = ''): 
+        self.coefs = list()
+        self.words = list()
+        self.terms = list()
+        self.numwords = 0
 
-            for col in range(self.max_strands): 
-                c2 = c2 + self.color_find(col+1, 0)
-            if str(c1) == str(c2): 
-                word = self.word + other.word
-                return_val = braid(word, c1, self.max_strands)
-        else:
-            return_val = braid(self.word, self.c, self.max_strands)
-            return_val.coef = other.coef * self.coef
-        return return_val
+        if string != 0: 
+            if coef == '': 
+                self.coefs.append(1)
+            else: 
+                self.coefs.append(coef)
+            if isinstance(string, list): 
+                self.update_from_terms(string)
+            elif isinstance(string, str): 
+                self.update_from_words(string)
+            elif isinstance(string, braid): 
+                self.coefs = [a for a in string.coefs]
+                self.words = [a for a in string.words]
+                self.update_from_words()
 
-    def __add__(self, other):
+    def __rmul__(self, other): 
         if isinstance(other, braid): 
-            if( (other.c == self.c) and (other.word == self.word) ): 
-                return_val = braid(other.word, other.c, other.max_strands, other.coef + self.coef)
-                return_val = [return_val]
-        return_val = [self, other]
-        return return_val
-
-    def color_find(self, strand_no, braid_level): 
-        """ 
-        Return the color of strand in position strand_no 
-        at the braid_level level in the braid (counting from 
-        the bottom of the braid up)
-        """ 
-        n = strand_no 
-        for ii in range(braid_level, len(self.string_nums)): 
-            if(self.string_char[ii] != 'y'): 
-                i_num = int(self.string_nums[ii])
-                n = self.s(i_num, n)
-        return self.c[n - 1]
-
-    def are_connected(self, level, n1, n2): 
-        c1 = self.color_find(n1, level)
-        c2 = self.color_find(n2, level)
-        if c1 == c2: 
-             return True
-        elif self.cartan(c1, c2) != 0: 
-             return True
+            return self
         else: 
-             return False
-            
+            new = braid(self.words[0], self.coefs[0])
+            for i in range(1,self.numwords): 
+                new = new + braid(self.words[i], self.coefs[i])
+            new.coefs = [other*a for a in new.coefs]
+            return new
 
-    def get_connectivity(self, level, n1, n2):
-        c1 = self.color_find(n1, level)
-        c2 = self.color_find(n2, level)
-        return self.cartan(c1, c2)
-
-    def s(self, n, strand):
-        """ 
-        Gives the new value of 
-        strand after the switch Sn 
-        """
-        if int(strand) == n: 
-            return int(strand) + 1
-        elif int(strand) == (n + 1): 
-            return n
+    def __mul__(self, other): 
+        if isinstance(other, braid): 
+            return self
         else: 
-            return int(strand)
+            new = braid(self.words[0], self.coefs[i])
+            for i in range(1,self.numwords): 
+                new = new + braid(self.words[i], self.coefs[i])
+            new.coefs = [other*a for a in new.coefs]
+            return new
+
+    def __add__(self, other_braid): 
+        if self.numwords > 0:
+            newself = braid(self.words[0], self.coefs[0])
+            for i in range(1,self.numwords): 
+                newself = newself + braid(self.words[i], self.coefs[i])
+        else: 
+            newself = braid('',0)
+
+        if isinstance(other_braid, braid): 
+            for termindex in range(other_braid.numwords): 
+                word1 = other_braid.words[termindex]
+                coef1 = other_braid.coefs[termindex]
+                if word1 in newself.words: 
+                    i = newself.words.index(word1)
+                    newself.coefs[i] = newself.coefs[i] + coef1
+                else: 
+                    newself.words.append(word1)
+                    newself.coefs.append(coef1)
+                    newself.update_from_words()
+        else:
+            if isinstance(other_braid, int) | isinstance(other_braid, float): 
+                other_braid = braid('', other_braid)
+            else: 
+                if len(other_braid) < 1: 
+                    other_braid = braid('',0)
+            newself = newself + braid(other_braid)
+
+        # get rid of any words that are 0
+        zero_coef = [newself.words[a] for a in range(newself.numwords) if newself.coefs[a] == 0]
+        for z in zero_coef: 
+            newself.words.remove(z)
+        newself.coefs = [a for a in newself.coefs if a != 0]
+        newself.update_from_words()
+
+        return newself
+
+    def __sub__(self, other_braid): 
+        if self.numwords > 0:
+            newself = braid(self.words[0], self.coefs[0])
+            for i in range(1,self.numwords): 
+                newself = newself + braid(self.words[i], self.coefs[i])
+        else: 
+            newself = braid('',0)
+        return newself + -1 * other_braid
+
+    def word(self): 
+        print ' + '.join([''.join([str(self.coefs[a]),'.',self.words[a]]) for a in range(self.numwords) if self.coefs[a] != 0])
+
+    def col(self, braid_level, num): 
+        whereami = int(num)
+        terms = self.terms[0]
+        for t in terms[braid_level:]: 
+             if t[0] == swap: 
+                 ow = whereami
+                 whereami = int(S(int(t[1]), whereami))
+        return colors[whereami-1]
 
     def draw(self): 
+        for i in range(self.numwords): 
+            word = self.words[i]
+            term = self.terms[i]
+            sub = braid(self.words[i],self.coefs[i])
 
-        if( len(self.word) > 0): 
-            outstr = ''
-            for i in range(self.max_strands):
-                outstr = outstr+str(self.c[i])+'  '
-            print outstr
+            if len(word) > 0: 
+                outstr = ASWORD([str(c)+'  ' for c in colors])
+                print outstr
+                outstr = '|  '*len(colors)
 
-            outstr = self.max_strands * '|  '
+                for t in term[::-1]: 
+                    n = int(t[1]) - 1
 
-            for i in reversed(range(len(self.string_char))):
-                char = self.string_char[i]
-                num = int(self.string_nums[i])
+                    if t[0] == dot: 
+                        if outstr[3*n] == 'o': 
+                            print outstr
+                            outstr = '|  '*len(colors)
+                        outstr = outstr[0:3*n]+'o  '+outstr[3*n+3:]
 
-                if char == 'y': 
-                    old_char = outstr[3*(num-1)]
-                    if old_char == 'o': 
+                    elif t[0] == swap: 
                         print outstr
-                        outstr = self.max_strands * '|  '
-                    outstr = outstr[0:3*(num-1)]+'o  '+outstr[3*num:-1]
-                else: 
+                        outstr = '|  '*len(colors)
+                        a = 3*n+4
+                        b = 3*n+0
+                        outstr = outstr[0:b]+' \\'+'/ '+outstr[a:]
+                        print outstr
+                        outstr = outstr[0:b]+' /'+'\ '+outstr[a:]
+                        print outstr
+                        outstr = '|  '*len(colors)
+
+                    elif t[0] == eps: 
+                        a = 3*n+4
+                        b = 3*n+0
+                        print outstr
+                        outstr = '|  '*len(colors)
+                        outstr=outstr[:b]+'\__/'+outstr[a:]
+                        print outstr
+                        outstr=outstr[:b]+' __ '+outstr[a:]
+                        print outstr
+                        outstr=outstr[:b]+'/  \\'+outstr[a:]
+                        print outstr
+                        outstr = '|  '*len(colors)
                     print outstr
-                    outstr = self.max_strands*'|  '
-                    a = 3*(num-1) + 4
-                    b = 3*(num-1) + 0
-                    outstr = outstr[0:b]+' \\'+'/ '+outstr[a:-1]
-                    print outstr
-                    outstr = outstr[0:b]+' /'+'\\ '+outstr[a:-1]
-                    print outstr
-                    outstr = self.max_strands * '|  '
-            print outstr
-            colors = '' 
-            for col in range(self.max_strands): 
-                colors = colors + self.color_find(col+1, 0) + '  '
-            print colors
-        else: 
-            print
+                outstr = ASWORD([sub.col(0,i+1)+'  ' for i in range(len(colors))])
+                print outstr
+                print 
+            else: 
+                print ' '
 
-def print_braid(input_braid):
-    mystring = ''
-    if isinstance(input_braid, braid): 
-        if len(input_braid.word) > 0: 
-            mystring = str(input_braid.coef) + input_braid.word
-    else: 
-        for b in range(len(input_braid)):
-            if len(input_braid[b].word) > 0: 
-                if len(mystring) > 0:
-                    mystring = mystring + plusminus(input_braid[b].coef) + input_braid[b].word
-                else: 
-                    mystring = str(input_braid[b].coef) + input_braid[b].word
-    print mystring
-
-def slide_dots(input_braid): 
-    nothing_changed = True
-    if isinstance(input_braid, braid): 
-        return_val = [input_braid]
-    else: 
-        return_val = input_braid
-    i_b = 0
-    while(i_b < len(return_val)): 
-        bc = return_val[i_b]
-        b = braid(bc.word, bc.c, bc.max_strands, bc.coef, bc.cart)
-
-        i = 0
-        while i < len(b.string_char): 
-
-            no_change_i = True
-            s_1 = b.string_char[i]
-            n_1 = b.string_nums[i]
-
-            if( s_1 == 'y' ):
-                for j in range(i+1,len(b.string_char)): 
-                    if no_change_i: 
-                        s_2 = b.string_char[j]
-                        n_2 = b.string_nums[j]
-
-                        if s_2 == 's' and ( (n_1 == n_2) or (int(n_1) == (int(n_2) + 1)) ): 
-
-                            no_change_i = False
-                            nothing_changed = False
-                            y_n = str(b.s(int(n_2), int(n_1)))
-
-                            new_word = ''
-                            connection = b.get_connectivity(j, n_2, str(int(n_2) + 1))
-
-                            if connection == are_same: 
-                                new_nums = b.string_nums[0:i]+b.string_nums[i+1:j]+b.string_nums[j+1:]
-                                new_char = b.string_char[0:i]+b.string_char[i+1:j]+b.string_char[j+1:]
-                                new_word = ''.join([''.join(a) for a in zip(new_char, new_nums)])
-
-                                if n_1 == n_2: 
-                                    coef = -1
-                                else: 
-                                    coef = 1
-
-                                b.string_nums = b.string_nums[0:i]+b.string_nums[i+1:j+1]+[y_n]+b.string_nums[j+1:]
-                                b.string_char = b.string_char[0:i]+b.string_char[i+1:j+1]+[s_1]+b.string_char[j+1:]
-                            else: 
-                                b.string_nums = b.string_nums[0:i]+b.string_nums[i+1:j+1]+[y_n]+b.string_nums[j+1:]
-                                b.string_char = b.string_char[0:i]+b.string_char[i+1:j+1]+[s_1]+b.string_char[j+1:]
-
-                            b_word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
-
-                            b = braid(b_word, b.c, b.max_strands, b.coef, b.cart)
-                            if new_word != '': 
-                                new_braid = braid(new_word, b.c, b.max_strands, coef * b.coef, b.cart)
-                                return_val = return_val + [new_braid]
-                if no_change_i:
-                    b.string_char.pop(i)
-                    b.string_nums.pop(i)
-                    b.string_char = b.string_char + [s_1]
-                    b.string_nums = b.string_nums + [n_1]
-                    b_word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
-                    b = braid(b_word, b.c, b.max_strands, b.coef, b.cart)
-                else:
-                    i = i - 1
+    def word_slide_dots(self, b): 
+        i = 1
+        terms = b.terms[0]
+        nothing_happened = True
+        while i < len(terms): 
+            if nothing_happened: 
+                no_change_i = True
+                t1 = terms[i-1]
+                t2 = terms[i+0]
+                if (t1[0] == dot) & (t2[0] != dot): 
+                    col1 = b.col(i-1,int(t1[1]))
+                    col2 = b.col(i-1,S(int(t2[1]),int(t1[1])))
+                    result = relation(t1,t2,c1=col1, c2=col2)
+                    stringlist = [terms[:i-1]+r[1:]+terms[i+1:] for r in result]
+                    coef = [int(r[0])*b.coefs[0]  for r in result]
+                    nothing_happened = False
+            else: 
+                break
             i = i + 1
-        return_val[i_b] = b
-        i_b = i_b + 1
-    return return_val, nothing_changed
+        if nothing_happened: 
+            return b
+        else: 
+            extra_error_stuff = [braid(stringlist[i]) for i in range(len(stringlist))]
+            stuff = coef[0]*extra_error_stuff[0]
+            for i in range(1,len(extra_error_stuff)): 
+                stuff = stuff + coef[i]*extra_error_stuff[i]
+            return stuff
 
-def remove_doubles(mybraid):
-    nothing_changed = True
-    if isinstance(mybraid, braid): 
-        return_val, nothing_changed =  remove_doubles([mybraid])
-    else: 
-        return_val = mybraid
-
-        i_b = 0
-        while(i_b < len(return_val)): 
-            b = return_val[i_b]
-            b = braid(b.word, b.c, b.max_strands, b.coef, b.cart)
-
-            # loop through all crossings
-            for i in range(b.num_crossings + b.num_dots - 1): 
-                num_i = b.string_nums[i]
-                if ( b.string_char[i] == 's' and b.string_char[i+1] == 's'): 
-                    num_j = b.string_nums[i+1]
-                    if num_j == num_i: 
-                        b.string_char[i  ] = 'd'
-                        b.string_char[i+1] = 'd'
-                        nothing_changed = False
-            i = 0
-            while i < (b.num_crossings + b.num_dots): 
-                if (b.string_char[i] == 'd' and b.string_char[i+1] == 'd'): 
-                    n1 = b.string_nums[i]
-                    n2 = b.string_nums[i+1]
-
-                    if b.are_connected(i, int(n1), int(n1)+1): 
-                        connection = b.get_connectivity(i, int(n1), int(n1)+1)
-                        if connection == are_same: 
-                            b = braid('','',num=0)
-                        else: 
-                            if connection == forward_directed: 
-                                first_dot = n1
-                                second_dot = str(int(n1) + 1)
-
-                            elif connection == backward_directed: 
-                                first_dot = str(int(n1) + 1)
-                                second_dot = n1
-
-                            #b.num_crossings = b.num_crossings - 2
-                            #b.num_dots = b.num_dots + 1
-                            b.string_char[i] = 'y'
-                            b.string_nums[i] = first_dot
-                            b.string_char.pop(i+1)
-                            b.string_nums.pop(i+1)
-                            b.word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
-                            b = braid(b.word, b.c, b.max_strands, b.coef, b.cart)
-
-                            new_string_char = b.string_char
-                            new_string_nums = b.string_nums
-                            new_string_nums[i] = second_dot
-
-                            newword = ''.join([''.join(a) for a in zip(new_string_char, new_string_nums)])
-                            newbraid = braid(newword, b.c, b.max_strands, -1 * b.coef, b.cart)
-
-                            return_val = return_val + [newbraid]
-                    else: 
-                        b.num_crossings = b.num_crossings - 2
-                        b.string_char.pop(i+1)
-                        b.string_nums.pop(i+1)
-                        b.string_char.pop(i)
-                        b.string_nums.pop(i)
-                i = i + 1
-
-            return_val[i_b] = b
-            i_b = i_b + 1
-
-    return return_val, nothing_changed
-
-def order_descending(input_braid): 
-    nothing_changed = True
-    if isinstance(input_braid, braid):
-        mybraid = braid(input_braid.word, input_braid.c, input_braid.max_strands, input_braid.coef, input_braid.cart)
-        mybraid.coef = input_braid.coef
-        for i in reversed(range(mybraid.num_crossings)):
-            for j in range(i):
-                n1 = mybraid.string_nums[j]
-                n2 = mybraid.string_nums[j+1]
-                if (int(n2) - int(n1)) > 1 : 
-                    mybraid.string_nums[j] = n2
-                    mybraid.string_nums[j+1] = n1
-                    nothing_changed = False
-        for i in reversed(range(mybraid.num_crossings, len(mybraid.string_nums))):
-            for j in range(mybraid.num_crossings, i):
-                n1 = mybraid.string_nums[j]
-                n2 = mybraid.string_nums[j+1]
-                if int(n2) > int(n1): 
-                    mybraid.string_nums[j] = n2
-                    mybraid.string_nums[j+1] = n1
-        mybraid.word = ''.join([''.join(a) for a in zip(mybraid.string_char, mybraid.string_nums)])
-        return [mybraid], nothing_changed
-    else: 
-        ret_braid = list()
-        for b in input_braid: 
-            out_b, none_changed = order_descending(b)
-            if(none_changed == False): 
-                nothing_changed = False
-            out_b[0].coef = b.coef
-            ret_braid = ret_braid + out_b
-        return ret_braid, nothing_changed
-
-def flip_triples(input_braid):
-    if isinstance(input_braid, braid): 
-        return flip_triples([input_braid])
-    else: 
+    def slide_dots(self): 
         nothing_changed = True
+        return_val = braid('')
         i_b = 0
-        while i_b < len(input_braid): 
-            b = braid(input_braid[i_b].word, input_braid[i_b].c, input_braid[i_b].max_strands, input_braid[i_b].coef, input_braid[i_b].cart)
-            for i in range(b.num_crossings + b.num_dots - 2): 
-                n1 = int(b.string_nums[i  ])
-                n2 = int(b.string_nums[i+1])
-                n3 = int(b.string_nums[i+2])
-                c1 = b.string_char[i  ]
-                c2 = b.string_char[i+1]
-                c3 = b.string_char[i+2]
-                if (c1 == 's'  and  c2 == 's' and  c3 == 's'): 
-                    if (n1 == n3 and (n1 - n2) == 1 ): 
-                        col1 = b.color_find(n2  , i)
-                        col2 = b.color_find(n2+1, i)
-                        col3 = b.color_find(n2+2, i)
+        while i_b < self.numwords: 
+            b = braid(self.words[i_b], self.coefs[i_b])
+            newb = self.word_slide_dots(b)
+            return_val = return_val + newb
+            i_b = i_b + 1
+
+            if newb != b: 
+                nothing_changed = False
+        if nothing_changed: 
+            return self
+        else: 
+            return_val = return_val - braid('')
+            return return_val.slide_dots()
+
+
+    def remove_doubles(self):
+        nothing_changed = True
+
+        if self.numwords > 0:
+            new = braid(self.words[0], self.coefs[0])
+            for i in range(1,self.numwords):
+                new = new + braid(self.words[i], self.coefs[i])
+        else: 
+            new = braid('')
+
+        i_b = 0
+        while i_b < self.numwords: 
+
+            terms = self.terms[i_b]
+            thisone = braid(self.words[i_b],self.coefs[i_b])
+
+            for t in range(len(terms)-1): 
+                if nothing_changed: 
+                    t1 = terms[t+0]
+                    t2 = terms[t+1]
+
+                    if t1 == t2: 
+                        if t1[0] == swap: 
+                            n1 = int(t1[1])
+                            n2 = int(t2[1])
+
+                            nothing_changed = False
+                            new = new - thisone
+                            c1, c2 = thisone.col(t, n1), thisone.col(t, n1+1)
+
+                            if c1 == c2: 
+                                pass
+                            elif cartan[(c1, c2)] == forward_directed: 
+                                thisone.terms = [terms[:t]+[dot+str(n1)]+terms[t+2:]]
+                                thisone.update_from_terms()
+                                thisone = thisone + braid(terms[:t]+[dot+str(n1+1)]+terms[t+2:], -1)
+                                new = new + thisone
+                            elif cartan[(c1, c2)] == backward_directed: 
+                                thisone.terms = [terms[:t]+[dot+str(n1)]+terms[t+2:]]
+                                thisone.update_from_terms()
+                                thisone = thisone + braid(terms[:t]+[dot+str(n1+1)]+terms[t+2:], -1)
+                                new = new + thisone
+                            else: 
+                                thisone.terms = [terms[:t]+terms[t+2:]]
+                                thisone.update_from_terms()
+                                new = new + thisone
+                else: 
+                    break
+            i_b = i_b + 1
+
+        if nothing_changed: 
+            return new
+        else: 
+            return new.remove_doubles()
+
+    def order_descending(self): 
+        nothing_changed = True
+
+        for i in range(self.numwords): 
+            thisone = braid(self.words[i], self.coefs[i])
+
+            if nothing_changed: 
+                for t in range(len(thisone.terms[0])-1): 
+                    t1 = thisone.terms[0][t+0]
+                    t2 = thisone.terms[0][t+1]
+                    if int(t2[1]) > (int(t1[1]) + 1): 
+                        self = self - thisone
 
                         nothing_changed = False
-                        if col1 == col3: 
-                            connection = b.cartan(col1,col2)
-                            new_word = ''
-                            if connection == are_same: 
-                                b.string_nums[i  ] = str(n2)
-                                b.string_nums[i+1] = str(n1)
-                                b.string_nums[i+2] = str(n2)
-                                b.word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
+                        thisone.words = [ASWORD(thisone.terms[0][:t]+[t2,t1]+thisone.terms[0][t+2:])]
+                        thisone.update_from_words()
+                        self = self + thisone
+            else: 
+                break
 
-                            elif connection == forward_directed: 
-                                coef = 1
-                                new_nums = b.string_nums[0:i]+b.string_nums[i+3:]
-                                new_char = b.string_char[0:i]+b.string_char[i+3:]
-                                new_word = ''.join([''.join(a) for a in zip(new_char, new_nums)])
+        if nothing_changed: 
+            return self
+        else: 
+            return self.order_descending()
 
-                            elif connection == backward_directed: 
-                                coef = -1
+    def flip_triples(self): 
+        to_return = braid('')
+        for i in range(self.numwords): 
+            tmp = braid(self.words[i], self.coefs[i])
+            t = tmp.terms[0]
+            c = tmp.coefs[0]
+            l = len(t)
+            no_changes = True
+            tempterm = braid('',0)
 
-                                new_nums = b.string_nums[0:i]+b.string_nums[i+3:]
-                                new_char = b.string_char[0:i]+b.string_char[i+3:]
-                                new_word = ''.join([''.join(a) for a in zip(new_char, new_nums)])
+            to_return = to_return + tmp
 
+            for it in range(len(t)-3): 
+                if no_changes: 
+                    t1 = t[it+0]
+                    t2 = t[it+1]
+                    t3 = t[it+2]
+                    n1 = int(t1[1])
+                    n2 = int(t2[1])
+                    n3 = int(t3[1])
+                    if (t1[0] == swap) & (t2[0] == swap) & (t3[0] == swap): 
+                        if (n1 == n3) & ( (n2 + 1) == n1 ): 
+                            c1 = tmp.col(it, n1)
+                            c2 = tmp.col(it, n1+1)
+                            c3 = tmp.col(it, n1)
+
+                            no_changes = False
+                            if c1 == c3: 
+                                tempterm = t[:it]+[t2,t1,t2]+t[it+3:]
+                                tempterm = braid(tempterm, c)
+
+                                if cartan[(c1,c2)] == forward_directed: 
+                                    tempterm = tempterm + braid(t[:it]+t[it+3:], c)
+
+                                if cartan[(c1,c2)] == backward_directed: 
+                                    tempterm = tempterm + braid(t[:it]+t[it+3:],-c)
                             else: 
-                                coef = 0
-                            b.string_nums[i  ] = str(n2)
-                            b.string_nums[i+1] = str(n1)
-                            b.string_nums[i+2] = str(n2)
-                            b.word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
+                                tempterm = braid('',0)
+                else: 
+                   pass
+            if no_changes == False: 
+                to_return = to_return + tempterm
+                to_return = to_return - tmp
 
-                            if new_word != '': 
-                                new_braid = braid(new_word, b.c, b.max_strands, coef * b.coef, b.cart)
-                                input_braid = input_braid + [new_braid]
-                        else: 
-                            b.string_nums[i  ] = str(n2)
-                            b.string_nums[i+1] = str(n1)
-                            b.string_nums[i+2] = str(n2)
-                            b.word = ''.join([''.join(a) for a in zip(b.string_char, b.string_nums)])
+        return to_return
 
-            input_braid[i_b] = b
-            i_b = i_b + 1
-        return input_braid, nothing_changed
-
-def canonical_form(input_braid):
-    stuff_to_change = True
-    max_braid_len = 0
-    if isinstance(input_braid, braid): 
-        return canonical_form([input_braid])
-    for b in input_braid: 
-        max_braid_len = max(max_braid_len, len(b.string_char))
-
-    a = False
-    count = 0
-    while (a == False and count < max_braid_len): 
-        input_braid, a = slide_dots(input_braid)
-        count = count + 1
-
-    count = 0
-    while(stuff_to_change and count < (max_braid_len*max_braid_len)):
-        stuff_to_change = False
-        count = count + 1
-
-        input_braid, anything_happen = remove_doubles(input_braid)
-        if anything_happen: 
-            input_braid, a = slide_dots(input_braid)
-            stuff_to_change = True
-
-        input_braid, anything_happen = order_descending(input_braid)
-        if anything_happen: 
-            input_braid, a = slide_dots(input_braid)
-            stuff_to_change = True
-
-        input_braid, anything_happen = flip_triples(input_braid)
-        if anything_happen: 
-            input_braid, a = slide_dots(input_braid)
-            stuff_to_change = True
-
-    return input_braid
+    def canonical_form(self): 
+        for l in range(self.numwords): 
+            self = self.slide_dots()
+            self = self.remove_doubles()
+            self = self.order_descending()
+            self = self.flip_triples()
+        return self
 
 
-test = braid('s3y3s2y2s1s1s3', '1222', cartan={('1','1'):2, ('2','2'):2, ('1','2'):-1, ('2','1'):0, ('2','3'):-1, ('3','2'):0, ('3','3'):2, ('2','2'):2})
-i = 0
-a = False
-while (i < 20 and a==False): 
-    test, a = slide_dots(test)
-    i = i + 1
-print 80*'-'
-print 'after sliding dots...'
-print 80*'-'
-for i in test: 
-    print i.word
-    i.draw()
-print_braid(test)
+thing = braid('s1s4s2x3s3')
+thing = thing.canonical_form()
+thing.word()
+thing.draw()
 
 
-i = 0
-a = False
-while (i < 20 and a==False): 
-    test, a  = remove_doubles(test)
-    test, b = slide_dots(test)
-    i = i + 1
-print
-print 80*'-'
-print 'after removing doubles...'
-print 80*'-'
-for i in test: 
-    print i.word
-    i.draw()
-print_braid(test)
-
-
-i = 0
-a = False
-while (i < 20 and a==False): 
-    test, a  = order_descending(test)
-    test, b = slide_dots(test)
-    i = i + 1
-test, a  = order_descending(test)
-print
-print 80*'-'
-print 'after reordering ...'
-print 80*'-'
-for i in test: 
-    print i.word
-    i.draw()
-print_braid(test)
-
-print 80*'='
-#test = braid('s5s4s5s3y3s2y2s1s1s3', '1222322', cartan={('1','1'):2, ('2','2'):2, ('1','2'):-1, ('2','1'):0, ('2','3'):-1, ('4','3'):0})
-test = braid('s5s4s5s3y3s2y2s1s1s3', '1222322', cartan={('1','1'):2, ('2','2'):2, ('1','2'):-1, ('2','1'):0, ('2','3'):-1, ('3','2'):0, ('3','3'):2, ('2','2'):2})
-test.draw()
-print 80*'='
-print
-print 'in Canonical Form ...'
-test = canonical_form(test)
-
-for i in test: 
-    print i.word
-    i.draw()
-print_braid(test)
-
-print 80*'='
 
