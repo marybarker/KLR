@@ -1,7 +1,7 @@
 import re
 
 cartan = {('1','1'):2, ('2','2'):2, ('3','3'):2, ('1','2'):1, ('1','3'):0, ('2','1'):1, ('3','1'):1, ('3','2'):1, ('2','3'):1}
-colors = '123123'
+colors = '1'*20
 
 dot = 'x'
 swap = 's'
@@ -38,7 +38,7 @@ def relation(thing1, thing2, thing3 = 1, c1 = '1', c2='1'):
            if cartan[(c1,c2)] == 2: 
                if n1 == n2:
                    thing = thing + [[-1,'']]
-               elif (n1 + 1) == n2:
+               elif (n2 + 1) == n1:
                    thing = thing + [[ 1,'']]
            return thing
 
@@ -61,8 +61,19 @@ class braid():
             terms = [''.join([no_nums[a],nums[a]]) for a in range(len(nums))]
             self.terms.append(terms)
 
-
         self.numwords = len(self.words)
+
+        self.numstrands = 0
+        strandlist = [self.numstrands]
+        for term in self.terms: 
+            if len(term) > 0: 
+                for t in term: 
+                    if len(str(t)) > 0: 
+                        if str(t)[0] == swap:
+                            strandlist.append(int(str(t)[1])+1)
+                        else:
+                            strandlist.append(int(str(t)[1]))
+        self.numstrands = max(strandlist)
 
     # update braid after changing/adding to braid.terms
     def update_from_terms(self, termslist = 0):
@@ -81,6 +92,18 @@ class braid():
                 coefs.append(coef)
         self.coefs = coefs
         self.numwords = len(self.words)
+        self.numstrands = 0
+        strandlist = [self.numstrands]
+        for term in self.terms: 
+            if len(term) > 0: 
+                for t in term: 
+                    if len(str(t)) > 0: 
+                        if str(t)[0] == swap:
+                            strandlist.append(int(str(t)[1])+1)
+                        else:
+                            strandlist.append(int(str(t)[1]))
+        self.numstrands = max(strandlist)
+
 
     # initializing an braid
     def __init__(self, string=0, coef = ''): 
@@ -88,6 +111,7 @@ class braid():
         self.words = list()
         self.terms = list()
         self.numwords = 0
+        self.numstrands = 0
 
         if string != 0: 
             if coef == '': 
@@ -105,29 +129,47 @@ class braid():
 
     def __rmul__(self, other): 
         if isinstance(other, braid): 
-            return self
-        else: 
-            new = braid(self.words[0], self.coefs[0])
-            for i in range(1,self.numwords): 
-                new = new + braid(self.words[i], self.coefs[i])
-            new.coefs = [other*a for a in new.coefs]
+            new = braid('',0)
+            for oi in range(other.numwords):
+                b1 = braid(other.words[oi], other.coefs[oi])
+
+                for bi in range(self.numwords):
+                    b2 = braid(self.words[bi], self.coefs[bi])
+                    c1 = ASWORD([b1.col(0,i+1) for i in range(b1.numstrands)])
+                    c2 = colors[:b2.numstrands]
+
+                    if c1 == c2:
+                        new.coefs.append(b1.coefs[0]*b2.coefs[0])
+                        new.words.append(ASWORD(b1.words[0]+b2.words[0]))
+                        new.update_from_words()
             return new
+        else: 
+            self.coefs = [other * int(x) for x in self.coefs]
+            return self
 
     def __mul__(self, other): 
         if isinstance(other, braid): 
-            return self
-        else: 
-            new = braid(self.words[0], self.coefs[i])
-            for i in range(1,self.numwords): 
-                new = new + braid(self.words[i], self.coefs[i])
-            new.coefs = [other*a for a in new.coefs]
+            new = braid('',0)
+            for oi in range(self.numwords):
+                b1 = braid(self.words[oi], self.coefs[oi])
+
+                for bi in range(other.numwords):
+                    b2 = braid(other.words[bi], other.coefs[bi])
+                    c1 = ASWORD([b1.col(0,i+1) for i in range(b1.numstrands)])
+                    c2 = colors[:b2.numstrands]
+
+                    if c1 == c2:
+                        new.coefs.append(b1.coefs[0]*b2.coefs[0])
+                        new.words.append(ASWORD(b1.words[0]+b2.words[0]))
+                        new.update_from_words()
             return new
+        else: 
+            self.coefs = [other * int(x) for x in self.coefs]
+            return self
 
     def __add__(self, other_braid): 
         if self.numwords > 0:
-            newself = braid(self.words[0], self.coefs[0])
-            for i in range(1,self.numwords): 
-                newself = newself + braid(self.words[i], self.coefs[i])
+            newself = braid(self)
         else: 
             newself = braid('',0)
 
@@ -161,15 +203,15 @@ class braid():
 
     def __sub__(self, other_braid): 
         if self.numwords > 0:
-            newself = braid(self.words[0], self.coefs[0])
-            for i in range(1,self.numwords): 
-                newself = newself + braid(self.words[i], self.coefs[i])
+            newself = braid(self)
         else: 
             newself = braid('',0)
         return newself + -1 * other_braid
 
     def word(self): 
         print ' + '.join([''.join([str(self.coefs[a]),'.',self.words[a]]) for a in range(self.numwords) if self.coefs[a] != 0])
+        print 
+
 
     def col(self, braid_level, num): 
         whereami = int(num)
@@ -187,9 +229,9 @@ class braid():
             sub = braid(self.words[i],self.coefs[i])
 
             if len(word) > 0: 
-                outstr = ASWORD([str(c)+'  ' for c in colors])
+                outstr = ASWORD([str(c)+'  ' for c in colors[:self.numstrands]])
                 print outstr
-                outstr = '|  '*len(colors)
+                outstr = '|  '*self.numstrands
 
                 for t in term[::-1]: 
                     n = int(t[1]) - 1
@@ -197,34 +239,35 @@ class braid():
                     if t[0] == dot: 
                         if outstr[3*n] == 'o': 
                             print outstr
-                            outstr = '|  '*len(colors)
+                            outstr = '|  '*self.numstrands
                         outstr = outstr[0:3*n]+'o  '+outstr[3*n+3:]
 
                     elif t[0] == swap: 
                         print outstr
-                        outstr = '|  '*len(colors)
+                        outstr = '|  '*self.numstrands
+                        #print outstr
                         a = 3*n+4
                         b = 3*n+0
                         outstr = outstr[0:b]+' \\'+'/ '+outstr[a:]
                         print outstr
                         outstr = outstr[0:b]+' /'+'\ '+outstr[a:]
                         print outstr
-                        outstr = '|  '*len(colors)
+                        outstr = '|  '*self.numstrands
 
                     elif t[0] == eps: 
                         a = 3*n+4
                         b = 3*n+0
                         print outstr
-                        outstr = '|  '*len(colors)
+                        outstr = '|  '*self.numstrands
                         outstr=outstr[:b]+'\__/'+outstr[a:]
                         print outstr
                         outstr=outstr[:b]+' __ '+outstr[a:]
                         print outstr
                         outstr=outstr[:b]+'/  \\'+outstr[a:]
                         print outstr
-                        outstr = '|  '*len(colors)
-                    print outstr
-                outstr = ASWORD([sub.col(0,i+1)+'  ' for i in range(len(colors))])
+                        outstr = '|  '*self.numstrands
+                print outstr
+                outstr = ASWORD([sub.col(0,i+1)+'  ' for i in range(self.numstrands)])
                 print outstr
                 print 
             else: 
@@ -249,7 +292,7 @@ class braid():
             else: 
                 break
             i = i + 1
-        if nothing_happened: 
+        if nothing_happened:
             return b
         else: 
             extra_error_stuff = [braid(stringlist[i]) for i in range(len(stringlist))]
@@ -281,9 +324,7 @@ class braid():
         nothing_changed = True
 
         if self.numwords > 0:
-            new = braid(self.words[0], self.coefs[0])
-            for i in range(1,self.numwords):
-                new = new + braid(self.words[i], self.coefs[i])
+            new = braid(self)
         else: 
             new = braid('')
 
@@ -358,8 +399,8 @@ class braid():
             return self.order_descending()
 
     def flip_triples(self): 
-        to_return = braid('')
-        for i in range(self.numwords): 
+        to_return = braid('', 0)
+        for i in range(self.numwords):
             tmp = braid(self.words[i], self.coefs[i])
             t = tmp.terms[0]
             c = tmp.coefs[0]
@@ -369,7 +410,7 @@ class braid():
 
             to_return = to_return + tmp
 
-            for it in range(len(t)-3): 
+            for it in range(len(t)-2): 
                 if no_changes: 
                     t1 = t[it+0]
                     t2 = t[it+1]
@@ -403,19 +444,36 @@ class braid():
 
         return to_return
 
-    def canonical_form(self): 
-        for l in range(self.numwords): 
+    def standard_form(self): 
+        for l in range(2*self.numwords): 
             self = self.slide_dots()
             self = self.remove_doubles()
             self = self.order_descending()
             self = self.flip_triples()
         return self
+""" end braid relations """
+
+"""
+testbraid = braid("s1x1s1")
+testbraid.draw()
+testbraid.word()
+testbraid = testbraid.standard_form()
+testbraid.draw()
+testbraid.word()
+
+testbraid = braid("s2s1s2")
+testbraid = testbraid.standard_form()
+testbraid.draw()
+testbraid.word()
+
+"""
 
 
-thing = braid('s1s4s2x3s3')
-thing = thing.canonical_form()
-thing.word()
-thing.draw()
+
+
+
+
+
 
 
 
