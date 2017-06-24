@@ -279,7 +279,6 @@ class braid():
         nothing_happened = True
         while i < len(terms): 
             if nothing_happened: 
-                no_change_i = True
                 t1 = terms[i-1]
                 t2 = terms[i+0]
                 if (t1[0] == dot) & (t2[0] != dot): 
@@ -383,7 +382,7 @@ class braid():
                 for t in range(len(thisone.terms[0])-1): 
                     t1 = thisone.terms[0][t+0]
                     t2 = thisone.terms[0][t+1]
-                    if int(t2[1]) > (int(t1[1]) + 1): 
+                    if (int(t2[1]) > (int(t1[1]) + 1) ) & (t2[0] != dot) : 
                         self = self - thisone
 
                         nothing_changed = False
@@ -467,6 +466,7 @@ testbraid.draw()
 testbraid.word()
 
 """
+
 
 
 
